@@ -1,5 +1,13 @@
 #include "systemcalls.h"
 
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <fcntl.h>
+
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -9,15 +17,18 @@
 */
 bool do_system(const char *cmd)
 {
+    /*
+    * TODO  add your code here
+    *  Call the system() function with the command set in the cmd
+    *   and return a boolean true if the system() call completed with success
+    *   or false() if it returned a failure
+    */
+    int ret = system(cmd);
+    if (ret == -1) {
+        return false;
+    }
 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
-
-    return true;
+    return (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) ? true : false;
 }
 
 /**
@@ -47,7 +58,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 /*
  * TODO:
@@ -58,10 +69,30 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    bool result = false;
+    pid_t pid;
 
+    pid = fork();
+    if (pid == -1) {
+        goto err_exec;
+    } else if (pid == 0) {
+        if (execv(command[0], command) == -1) {
+            _exit(1);
+        }
+    }
+    
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        goto err_exec;
+    }
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        result = true;
+    }
+
+err_exec:
     va_end(args);
-
-    return true;
+    return result;
 }
 
 /**
@@ -82,7 +113,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 
 /*
@@ -93,7 +124,43 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
 
-    va_end(args);
+    bool result = false;
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { 
+        perror("open"); 
+        goto err_proc;
+    }
 
-    return true;
+    int pid = fork();
+    switch (pid) {
+    case -1: 
+        perror("fork");
+        close(fd);
+        goto err_proc;
+
+    case 0:
+        if (dup2(fd, 1) < 0) { 
+            _exit(1); 
+        }
+        close(fd);
+        
+        if (execv(command[0], command) == -1) {
+            _exit(1);
+        }
+    default:
+        close(fd);
+    
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            goto err_proc;
+        }
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            result = true;
+        }
+    }
+
+err_proc:
+    va_end(args);
+    return result;
 }
