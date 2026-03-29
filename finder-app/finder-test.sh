@@ -12,6 +12,7 @@ WRITEDIR=/tmp/aeld-data
 OUTDIR=/tmp/assignment4-result.txt
 
 CONFDIR=/etc/finder-app/conf
+TOOLDIR=/usr/bin
 
 username=$(cat ${CONFDIR}/username.txt)
 
@@ -59,10 +60,10 @@ fi
 
 for i in $( seq 1 $NUMFILES)
 do
-	./writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	${TOOLDIR}/writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(${TOOLDIR}/finder.sh "$WRITEDIR" "$WRITESTR")
 
 # remove temporary directories
 rm -rf "${WRITEDIR}"
